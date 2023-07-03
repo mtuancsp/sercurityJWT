@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>User Page</title>
+</head>
+<body>
+<h1>User Page</h1>
+<p>Welcome, <span th:text="${#authentication.getName()}"></span>!</p>
+<p>You have <span th:text="${#authentication.authorities}"></span> access.</p>
+<form th:action="@{/logout}" method="post">
+  <input type="submit" value="Logout">
+</form>
+</body>
+</html>

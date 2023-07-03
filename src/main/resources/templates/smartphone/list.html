@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <title>List Smartphone</title>
+    <style>
+        table {
+            margin: 0.5em 0;
+            border: 1px solid #000;
+        }
+
+        td, th {
+            border: 1px solid #000;
+            padding: 5px;
+            text-align: center;
+        }
+
+        button.active {
+            background-color: #f0f0f0;
+        }
+
+        button {
+            text-decoration: none;
+            display: inline-block;
+            margin: 2px 2px;
+            cursor: pointer;
+        }
+    </style>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
+    <script th:inline="javascript">
+        $(document).ready(function () {
+            listSmartphones(0);
+        });
+
+        function listSmartphones(page) {
+
+            var search = $('#search').val().trim();
+            var url = `http://localhost:8080/smartphones/list?page=${page}&size=10&search=${search}`;
+
+            $.ajax({
+                type: "GET",
+                url: url,
+                success: function (data) {
+                    renderSmartphoneTable(data.content);
+                    renderPagination(data);
+                }
+            });
+        }
+
+        function renderSmartphoneTable(smartphones) {
+            var isAdmin = $('#isAdmin').val() === 'true';
+
+            var producerText = $('#producerHeader').text();
+            var modelText = $('#modelHeader').text();
+            var priceText = $('#priceHeader').text();
+            var deleteText = $('#deleteHeader').text();
+
+            var deleteTh = isAdmin ? `<th id="deleteHeader">${deleteText}</th>` : '';
+
+            var thRow = `<tr>
+            <th id="producerHeader">${producerText}</th>
+            <th id="modelHeader">${modelText}</th>
+            <th id="priceHeader">${priceText}</th>
+            ${deleteTh}
+        </tr>`;
+            $("#smartphoneList").empty().append(thRow);
+
+            smartphones.forEach(function (smartphone) {
+
+                var deleteTr = isAdmin ? `<td><button onclick="deleteSmartphone(${smartphone.id})">${deleteText}</button></td>` : '';
+
+                var row = `<tr>
+                <td>${smartphone.producer}</td>
+                <td>${smartphone.model}</td>
+                <td>${smartphone.price}</td>
+                ${deleteTr}
+            </tr>`;
+                $("#smartphoneList").append(row);
+            });
+        }
+
+
+        function renderPagination(data) {
+            var pagination = "";
+
+            if (data.number > 0) {
+                pagination += `<button onclick="listSmartphones(${data.number - 1})">&laquo;</button>`;
+            }
+
+            for (var i = 0; i < data.totalPages; i++) {
+                var pageNumber = i + 1;
+                pagination += `<button onclick="listSmartphones(${i})" ${data.number === i ? 'class="active"' : ''}>${pageNumber}</button>`;
+            }
+
+            if (data.number < data.totalPages - 1) {
+                pagination += `<button onclick="listSmartphones(${data.number + 1})">&raquo;</button>`;
+            }
+
+            $("#pagination").html(pagination);
+        }
+
+        function addNewSmartPhone() {
+            let producer = $('#producer').val();
+            let model = $('#model').val();
+            let price = $('#price').val();
+
+            let newSmartphone = {
+                producer: producer,
+                model: model,
+                price: price
+            };
+
+            $.ajax({
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                type: "POST",
+                data: JSON.stringify(newSmartphone),
+                url: "http://localhost:8080/smartphones",
+                success: function () {
+                    listSmartphones(0);
+                    alert("New smartphone added")
+                }
+            });
+        }
+
+        function deleteSmartphone(id) {
+            $.ajax({
+                type: "DELETE",
+                url: "http://localhost:8080/smartphones/" + id,
+                success: function () {
+                    listSmartphones(0);
+                }
+            });
+        }
+    </script>
+</head>
+<body>
+
+<select onchange="location = this.value">
+    <option th:each="lang : ${T(com.example.springboot.configuration.Language).languages}"
+            th:value="${'?lang=' + lang.key}"
+            th:text="${lang.value}"
+            th:selected="${#locale.language == lang.key}">
+    </option>
+</select>
+
+<span th:text="${#authentication.getName()}"></span>
+<span th:text="${#authentication.getAuthorities()[0].getAuthority()}"></span>
+
+<input type="hidden" id="isAdmin" th:value="${#authentication.getAuthorities()[0].getAuthority()=='ADMIN'}" />
+
+<form id="add-smartphone" th:if="${#authentication.getAuthorities()[0].getAuthority()=='ADMIN'}">
+    <table>
+        <tr>
+            <td th:text="#{smartphone-form.producer}"></td>
+            <td><input type="text" id="producer" th:placeholder="#{smartphone-form.producer}"></td>
+        </tr>
+        <tr>
+            <td th:text="#{smartphone-form.model}"></td>
+            <td><input type="text" id="model" th:placeholder="#{smartphone-form.model}"></td>
+        </tr>
+        <tr>
+            <td th:text="#{smartphone-form.price}"></td>
+            <td><input type="text" id="price" th:placeholder="#{smartphone-form.price}"></td>
+        </tr>
+        <tr>
+            <td colspan="2">
+                <button type="button" onclick="addNewSmartPhone()" th:text="#{smartphone-form.submit}"></button>
+                </button>
+            </td>
+        </tr>
+    </table>
+</form>
+
+<h2 th:text="#{smartphone-list.title}" style="margin-bottom: 5px"></h2>
+<form id="search-form">
+    <input type="text" id="search" th:placeholder="#{smartphone-list.search}" oninput="listSmartphones(0)">
+    <button type="button" onclick="listSmartphones(0)" th:text="#{smartphone-list.search}"></button>
+</form>
+
+<table id="smartphoneList">
+    <tr>
+        <th id="producerHeader" th:text="#{smartphone-form.producer}">Producer</th>
+        <th id="modelHeader" th:text="#{smartphone-form.model}">Model</th>
+        <th id="priceHeader" th:text="#{smartphone-form.price}">Price</th>
+        <th id="deleteHeader" th:text="#{smartphone-form.delete}">Delete</th>
+    </tr>
+</table>
+
+<div id="pagination">
+    <button onclick="listSmartphones(0)">1</button>
+</div>
+
+</body>
+</html>
